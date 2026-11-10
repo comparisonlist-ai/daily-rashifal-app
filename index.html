@@ -1,1 +1,193 @@
 
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>दैनिक राशिफल | Daily Rashifal</title>
+    <style>
+        :root {
+            --primary: #ff6b6b;
+            --secondary: #48dbfb;
+            --bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --text: #2d3436;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 16px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #d63031;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+        }
+        .rashi-selector {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+            scrollbar-width: none;
+        }
+        .rashi-selector::-webkit-scrollbar {
+            display: none;
+        }
+        .rashi-btn {
+            background: #fff;
+            border: 2px solid #ddd;
+            padding: 8px 16px;
+            border-radius: 20px;
+            white-space: nowrap;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .rashi-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 16px;
+        }
+        .card h2 {
+            margin-top: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #f1f2f6;
+            padding-bottom: 10px;
+        }
+        .section-title {
+            font-weight: bold;
+            color: #e17055;
+            margin-top: 14px;
+            margin-bottom: 4px;
+        }
+        .meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            background: #f1f2f6;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #636e72;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>✨ दैनिक राशिफल ✨</h1>
+    
+    <!-- Rashi Horizontal Selector Tabs (1 to 12) -->
+    <div class="rashi-selector" id="rashiTabs">
+        <button class="rashi-btn active" onclick="selectRashi(1, 'मेष')">मेष (Aries)</button>
+        <button class="rashi-btn" onclick="selectRashi(2, 'वृष')">वृष (Taurus)</button>
+        <button class="rashi-btn" onclick="selectRashi(3, 'मिथुन')">मिथुन (Gemini)</button>
+        <button class="rashi-btn" onclick="selectRashi(4, 'कर्क')">कर्क (Cancer)</button>
+        <button class="rashi-btn" onclick="selectRashi(5, 'सिंह')">सिंह (Leo)</button>
+        <button class="rashi-btn" onclick="selectRashi(6, 'कन्या')">कन्या (Virgo)</button>
+        <button class="rashi-btn" onclick="selectRashi(7, 'तुला')">तुला (Libra)</button>
+        <button class="rashi-btn" onclick="selectRashi(8, 'वृश्चिक')">वृश्चिक (Scorpio)</button>
+        <button class="rashi-btn" onclick="selectRashi(9, 'धनु')">धनु (Sagittarius)</button>
+        <button class="rashi-btn" onclick="selectRashi(10, 'मकर')">मकर (Capricorn)</button>
+        <button class="rashi-btn" onclick="selectRashi(11, 'कुंभ')">कुंभ (Aquarius)</button>
+        <button class="rashi-btn" onclick="selectRashi(12, 'मीन')">मीन (Pisces)</button>
+    </div>
+
+    <!-- Content Card -->
+    <div id="rashifalContent" class="card">
+        <div class="loading">राशिफल लोड हो रहा है...</div>
+    </div>
+</div>
+
+<script>
+    // Replace with your actual Cloudflare Worker production URL
+    const WORKER_URL = "https://daily-rashifal-app.comparisonlist.workers.dev";
+
+    async function loadRashifal(rashiIndex) {
+        const container = document.getElementById("rashifalContent");
+        container.innerHTML = `<div class="loading">लोड हो रहा है...</div>`;
+
+        try {
+            // Fetch the worker endpoint passing rashi index
+            const response = await fetch(`${WORKER_URL}?rashi=${rashiIndex}&lang=hi`);
+            const result = await response.json();
+
+            if (result.success && result.data && result.data.rashifal) {
+                // Find the selected rashi object from array (index matches rashi_index)
+                const data = result.data.rashifal.find(r => r.rashi_index === (rashiIndex - 1)) || result.data.rashifal[0];
+                const p = data.predictions_hi;
+
+                container.innerHTML = `
+                    <h2>${data.rashi_hi} (${data.rashi_en}) <span style="font-size: 1rem; background: #ffeaa7; padding: 4px 8px; border-radius: 6px;">⭐ ${p.stars_label}</span></h2>
+                    
+                    <p><strong>सार (Overview):</strong> ${p.overall}</p>
+                    
+                    <div class="section-title">💼 करियर (Career)</div>
+                    <p>${p.career}</p>
+
+                    <div class="section-title">❤️ प्रेम व संबंध (Love)</div>
+                    <p>${p.love}</p>
+
+                    <div class="section-title">💰 आर्थिक स्थिति (Finance)</div>
+                    <p>${p.finance}</p>
+
+                    <div class="section-title">🌿 स्वास्थ्य (Health)</div>
+                    <p>${p.health}</p>
+
+                    <div class="meta-grid">
+                        <div>🔢 <strong>लकी नंबर:</strong> ${data.lucky.number}</div>
+                        <div>🎨 <strong>लकी रंग:</strong> ${data.lucky.colors.join(', ')}</div>
+                        <div style="grid-column: span 2;">🕉️ <strong>मंत्र:</strong> ${data.lucky.mantra}</div>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `<p style="text-align:center; color:red;">डेटा लोड करने में विफल। कृपया पुनः प्रयास करें।</p>`;
+            }
+        } catch (err) {
+            console.error(err);
+            container.innerHTML = `<p style="text-align:center; color:red;">कनेक्शन त्रुटि।</p>`;
+        }
+    }
+
+    function selectRashi(index, name) {
+        // Update active class on buttons
+        const buttons = document.querySelectorAll('.rashi-btn');
+        buttons.forEach((btn, idx) => {
+            if (idx === (index - 1)) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        // Fetch data for clicked rashi
+        loadRashifal(index);
+    }
+
+    // Load Aries (1) by default on page load
+    loadRashifal(1);
+</script>
+
+</body>
+</html>
