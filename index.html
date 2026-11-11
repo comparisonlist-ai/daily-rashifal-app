@@ -1,1 +1,238 @@
 
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Astroseek - Daily Rashifal & Planetary Insights</title>
+    <style>
+        :root {
+            --primary: #ff6b6b;
+            --bg: #0f172a;
+            --card-bg: #ffffff;
+            --text: #2d3436;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: #fff;
+            margin: 0;
+            padding: 16px;
+        }
+        .container {
+            max-width: 650px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #ffaa00;
+            margin-bottom: 4px;
+            font-size: 1.8rem;
+        }
+        .subtitle {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+        }
+        .date-badge {
+            text-align: center;
+            background: rgba(255,255,255,0.1);
+            padding: 6px 12px;
+            border-radius: 20px;
+            display: inline-block;
+            margin: 0 auto 20px auto;
+            font-size: 0.85rem;
+            color: #cbd5e1;
+        }
+        .date-container {
+            text-align: center;
+        }
+        .rashi-selector {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+            scrollbar-width: none;
+        }
+        .rashi-selector::-webkit-scrollbar {
+            display: none;
+        }
+        .rashi-btn {
+            background: #1e293b;
+            color: #cbd5e1;
+            border: 2px solid #334155;
+            padding: 8px 16px;
+            border-radius: 20px;
+            white-space: nowrap;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .rashi-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .card {
+            background: var(--card-bg);
+            color: var(--text);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            margin-bottom: 16px;
+        }
+        .card h2 {
+            margin-top: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #f1f2f6;
+            padding-bottom: 10px;
+            font-size: 1.3rem;
+        }
+        .badge {
+            font-size: 0.8rem;
+            background: #ffeaa7;
+            color: #d35400;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        .section-title {
+            font-weight: bold;
+            color: #e17055;
+            margin-top: 14px;
+            margin-bottom: 4px;
+            font-size: 0.95rem;
+        }
+        .meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            background: #f1f2f6;
+            padding: 14px;
+            border-radius: 8px;
+            margin-top: 18px;
+            font-size: 0.9rem;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #636e72;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Astroseek</h1>
+    <div class="subtitle">Daily Rashifal & Planetary Insights</div>
+    <div class="date-container">
+        <div class="date-badge" id="dateDisplay">📅 तिथि लोड हो रही है...</div>
+    </div>
+    
+    <!-- Horizontal Rashi Selector (1 to 12) -->
+    <div class="rashi-selector" id="rashiTabs">
+        <button class="rashi-btn active" onclick="selectRashi(1, 'मेष')">मेष (Aries)</button>
+        <button class="rashi-btn" onclick="selectRashi(2, 'वृष')">वृष (Taurus)</button>
+        <button class="rashi-btn" onclick="selectRashi(3, 'मिथुन')">मिथुन (Gemini)</button>
+        <button class="rashi-btn" onclick="selectRashi(4, 'कर्क')">कर्क (Cancer)</button>
+        <button class="rashi-btn" onclick="selectRashi(5, 'सिंह')">सिंह (Leo)</button>
+        <button class="rashi-btn" onclick="selectRashi(6, 'कन्या')">कन्या (Virgo)</button>
+        <button class="rashi-btn" onclick="selectRashi(7, 'तुला')">तुला (Libra)</button>
+        <button class="rashi-btn" onclick="selectRashi(8, 'वृश्चिक')">वृश्चिक (Scorpio)</button>
+        <button class="rashi-btn" onclick="selectRashi(9, 'धनु')">धनु (Sagittarius)</button>
+        <button class="rashi-btn" onclick="selectRashi(10, 'मकर')">मकर (Capricorn)</button>
+        <button class="rashi-btn" onclick="selectRashi(11, 'कुंभ')">कुंभ (Aquarius)</button>
+        <button class="rashi-btn" onclick="selectRashi(12, 'मीन')">मीन (Pisces)</button>
+    </div>
+
+    <!-- Main Content Area -->
+    <div id="rashifalContent" class="card">
+        <div class="loading">तारे गणना कर रहे हैं... ✨</div>
+    </div>
+</div>
+
+<script>
+    const WORKER_URL = "https://daily-rashifal-app.comparisonlist.workers.dev";
+    let cachedData = null;
+
+    async function fetchAllData() {
+        try {
+            const response = await fetch(`${WORKER_URL}?lang=hi`);
+            if (!response.ok) throw new Error("Network response was not ok");
+            const result = await response.json();
+            
+            if (result.success && result.data) {
+                cachedData = result.data;
+                document.getElementById("dateDisplay").innerText = `📅 दिनांक: ${cachedData.date}`;
+                loadRashiDetails(1); // Load Aries by default
+            } else {
+                document.getElementById("rashifalContent").innerHTML = `<p style="text-align:center; color:#d63031;">डेटा लोड करने में विफल।</p>`;
+            }
+        } catch (err) {
+            console.error("Fetch error:", err);
+            document.getElementById("rashifalContent").innerHTML = `<p style="text-align:center; color:#d63031;">सर्वर से संपर्क करने में असमर्थ।</p>`;
+        }
+    }
+
+    function loadRashiDetails(rashiNumber) {
+        const container = document.getElementById("rashifalContent");
+        if (!cachedData || !cachedData.rashifal) {
+            container.innerHTML = `<div class="loading">डेटा प्रोसेस हो रहा है...</div>`;
+            return;
+        }
+
+        const data = cachedData.rashifal.find(r => r.rashi_index === (rashiNumber - 1));
+        if (!data) return;
+
+        const p = data.predictions_hi || {};
+        const lucky = data.lucky || {};
+
+        container.innerHTML = `
+            <h2>${data.rashi_hi} (${data.rashi_en}) <span class="badge">⭐ ${p.stars_label || 'शुभ'}</span></h2>
+            
+            <p style="margin-top: 10px; line-height: 1.5;"><strong>सार (Overview):</strong> ${p.overall}</p>
+            
+            <div class="section-title">💼 करियर (Career)</div>
+            <p style="margin: 4px 0; line-height: 1.4;">${p.career}</p>
+
+            <div class="section-title">❤️ प्रेम व संबंध (Love & Family)</div>
+            <p style="margin: 4px 0; line-height: 1.4;">${p.love}</p>
+
+            <div class="section-title">💰 आर्थिक स्थिति (Finance)</div>
+            <p style="margin: 4px 0; line-height: 1.4;">${p.finance}</p>
+
+            <div class="section-title">🌿 स्वास्थ्य (Health)</div>
+            <p style="margin: 4px 0; line-height: 1.4;">${p.health}</p>
+
+            <div class="meta-grid">
+                <div>🔢 <strong>लकी नंबर:</strong> ${lucky.number}</div>
+                <div>🎨 <strong>लकी रंग:</strong> ${Array.isArray(lucky.colors) ? lucky.colors.join(', ') : lucky.colors}</div>
+                <div style="grid-column: span 2; margin-top: 4px;">🕉️ <strong>मंत्र:</strong> ${lucky.mantra}</div>
+            </div>
+        `;
+    }
+
+    function selectRashi(number, name) {
+        const buttons = document.querySelectorAll('.rashi-btn');
+        buttons.forEach((btn, idx) => {
+            if (idx === (number - 1)) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        loadRashiDetails(number);
+    }
+
+    // Initialize fetch on load
+    fetchAllData();
+</script>
+
+</body>
+</html>
