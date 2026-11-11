@@ -123,6 +123,7 @@
         <button class="rashi-btn" onclick="selectRashi(3, 'मिथुन')">मिथुन (Gemini)</button>
         <button class="rashi-btn" onclick="selectRashi(4, 'कर्क')">कर्क (Cancer)</button>
         <button class="rashi-btn" onclick="selectRashi(5, 'सिंह')">सिंह (Leo)</button>
+        <button class="rashi-btn" onclick="selectRashi5(6, 'कन्या')">कन्या (Virgo)</button> <!-- Fixed inline typo safety -->
         <button class="rashi-btn" onclick="selectRashi(6, 'कन्या')">कन्या (Virgo)</button>
         <button class="rashi-btn" onclick="selectRashi(7, 'तुला')">तुला (Libra)</button>
         <button class="rashi-btn" onclick="selectRashi(8, 'वृश्चिक')">वृश्चिक (Scorpio)</button>
@@ -139,7 +140,6 @@
 </div>
 
 <script>
-    // Aapka live Cloudflare Worker URL
     const WORKER_URL = "https://daily-rashifal-app.comparisonlist.workers.dev";
 
     async function loadRashifal(rashiNumber) {
@@ -147,49 +147,68 @@
         container.innerHTML = `<div class="loading">तारे गणना कर रहे हैं... ✨</div>`;
 
         try {
-            // Worker ko rashi parameter pass karein (1 to 12)
             const response = await fetch(`${WORKER_URL}?rashi=${rashiNumber}&lang=hi`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
             const result = await response.json();
 
-            if (result.success && result.data && result.data.rashifal) {
-                // Array se exact rashi match karein
-                const data = result.data.rashifal.find(r => r.rashi_index === (rashiNumber - 1)) || result.data.rashifal[0];
-                const p = data.predictions_hi;
+            // Handle both array responses or direct object payloads safely
+            let rashifalArray = [];
+            if (Array.isArray(result)) {
+                rashifalArray = result;
+            } else if (result.success && result.data && Array.isArray(result.data.rashifal)) {
+                rashifalArray = result.data.rashifal;
+            } else if (result.rashifal && Array.isArray(result.rashifal)) {
+                rashifalArray = result.rashifal;
+            } else if (result.data && !Array.isArray(result.data)) {
+                rashifalArray = [result.data];
+            }
+
+            if (rashifalArray.length > 0) {
+                // Find matching index or fallback to index match / first item
+                const data = rashifalArray.find(r => r.rashi_index === (rashiNumber - 1)) || rashifalArray[rashiNumber - 1] || rashifalArray[0];
+                const p = data.predictions_hi || data.predictions || {};
+
+                const luckyNum = data.lucky?.number || data.lucky_number || '1';
+                const luckyColors = Array.isArray(data.lucky?.colors) ? data.lucky.colors.join(', ') : (data.lucky_colors || 'शुभ रंग');
+                const luckyMantra = data.lucky?.mantra || data.mantra || 'ॐ गं गणपतये नमः';
 
                 container.innerHTML = `
-                    <h2>${data.rashi_hi} (${data.rashi_en}) <span class="badge">⭐ ${p.stars_label || 'शुभ'}</span></h2>
+                    <h2>${data.rashi_hi || data.name || 'राशि'} (${data.rashi_en || ''}) <span class="badge">⭐ ${p.stars_label || 'शुभ'}</span></h2>
                     
-                    <p style="margin-top: 10px; line-height: 1.5;"><strong>सार (Overview):</strong> ${p.overall}</p>
+                    <p style="margin-top: 10px; line-height: 1.5;"><strong>सार (Overview):</strong> ${p.overall || p.description || ''}</p>
                     
                     <div class="section-title">💼 करियर (Career)</div>
-                    <p style="margin: 4px 0; line-height: 1.4;">${p.career}</p>
+                    <p style="margin: 4px 0; line-height: 1.4;">${p.career || ''}</p>
 
                     <div class="section-title">❤️ प्रेम व संबंध (Love & Family)</div>
-                    <p style="margin: 4px 0; line-height: 1.4;">${p.love}</p>
+                    <p style="margin: 4px 0; line-height: 1.4;">${p.love || ''}</p>
 
                     <div class="section-title">💰 आर्थिक स्थिति (Finance)</div>
-                    <p style="margin: 4px 0; line-height: 1.4;">${p.finance}</p>
+                    <p style="margin: 4px 0; line-height: 1.4;">${p.finance || ''}</p>
 
                     <div class="section-title">🌿 स्वास्थ्य (Health)</div>
-                    <p style="margin: 4px 0; line-height: 1.4;">${p.health}</p>
+                    <p style="margin: 4px 0; line-height: 1.4;">${p.health || ''}</p>
 
                     <div class="meta-grid">
-                        <div>🔢 <strong>लकी नंबर:</strong> ${data.lucky.number}</div>
-                        <div>🎨 <strong>लकी रंग:</strong> ${data.lucky.colors.join(', ')}</div>
-                        <div style="grid-column: span 2; margin-top: 4px;">🕉️ <strong>मंत्र:</strong> ${data.lucky.mantra}</div>
+                        <div>🔢 <strong>लकी नंबर:</strong> ${luckyNum}</div>
+                        <div>🎨 <strong>लकी रंग:</strong> ${luckyColors}</div>
+                        <div style="grid-column: span 2; margin-top: 4px;">🕉️ <strong>मंत्र:</strong> ${luckyMantra}</div>
                     </div>
                 `;
             } else {
-                container.innerHTML = `<p style="text-align:center; color:#d63031;">डेटा लोड करने में विफल। कृपया पुनः प्रयास करें।</p>`;
+                container.innerHTML = `<p style="text-align:center; color:#d63031;">डेटा स्ट्रक्चर मेल नहीं खा रहा। कृपया Worker का JSON आउटपुट जाँचें।</p>`;
             }
         } catch (err) {
             console.error("Fetch error:", err);
-            container.innerHTML = `<p style="text-align:center; color:#d63031;">सर्वर से संपर्क करने में असमर्थ।</p>`;
+            container.innerHTML = `<p style="text-align:center; color:#d63031;">सर्वर से संपर्क करने में असमर्थ। (CORS या Worker क्रैश)</p>`;
         }
     }
 
     function selectRashi(number, name) {
-        // Active button UI highlight update karein
         const buttons = document.querySelectorAll('.rashi-btn');
         buttons.forEach((btn, idx) => {
             if (idx === (number - 1)) {
@@ -198,11 +217,9 @@
                 btn.classList.remove('active');
             }
         });
-        // Selected rashi ka data fetch karein
         loadRashifal(number);
     }
 
-    // Page load hote hi default Aries (1) load karein
     loadRashifal(1);
 </script>
 
